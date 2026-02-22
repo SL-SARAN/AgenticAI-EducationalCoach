@@ -19,6 +19,8 @@ if "selected_topic" not in st.session_state:
     st.session_state.selected_topic = None
 if "selected_level" not in st.session_state:
     st.session_state.selected_level = None
+if "current_difficulty" not in st.session_state:
+    st.session_state.current_difficulty = "Medium"
 if "user_answer" not in st.session_state:
     st.session_state.user_answer = None
 
@@ -35,13 +37,13 @@ if st.session_state.step == "setup":
     with col2:
         level = st.selectbox("Select Your Level", learning_setup.get_levels())
     
-    if st.button("Start Quiz"):
+        # Initialize difficulty based on level for the first question
         st.session_state.selected_topic = topic
         st.session_state.selected_level = level
+        st.session_state.current_difficulty = difficulty_mapper.map_level_to_difficulty(level)
         
-        with st.spinner("Generating adaptive question..."):
-            difficulty = difficulty_mapper.map_level_to_difficulty(level)
-            q_data = question_agent.generate_question(topic, difficulty)
+        with st.spinner(f"Generating question ({st.session_state.current_difficulty})..."):
+            q_data = question_agent.generate_question(topic, st.session_state.current_difficulty)
             
             if q_data and "question" in q_data:
                 st.session_state.current_question = q_data
@@ -78,43 +80,142 @@ elif st.session_state.step == "result":
     # 1. Evaluate
     is_correct = (user_ans == correct_ans)
     
+    
+    DIFFICULTY_LEVELS = ["Easy", "Easy-Medium", "Medium", "Hard"]
+    current_diff = st.session_state.current_difficulty
+    current_idx = DIFFICULTY_LEVELS.index(current_diff) if current_diff in DIFFICULTY_LEVELS else 1
+
     if is_correct:
         st.success(f"✅ Correct! The answer was {correct_ans}.")
         score = 100
+        mistake_type = "None (Correct Answer)"
         learner_model.update_score(st.session_state.selected_topic, score)
+        
+        # Increase Difficulty
+        if current_idx < len(DIFFICULTY_LEVELS) - 1:
+            new_diff = DIFFICULTY_LEVELS[current_idx + 1]
+            st.session_state.current_difficulty = new_diff
+            st.toast(f"📈 Performance Strong! Increasing difficulty to **{new_diff}**.")
+        else:
+            st.toast("🏆 You are at Max Difficulty!")
+            
     else:
         st.error(f"❌ Incorrect. You chose {user_ans}, but the correct answer was {correct_ans}.")
         score = 0
         learner_model.update_score(st.session_state.selected_topic, score)
         
+        # Decrease Difficulty
+        if current_idx > 0:
+            new_diff = DIFFICULTY_LEVELS[current_idx - 1]
+            st.session_state.current_difficulty = new_diff
+            st.toast(f"📉 Adjusting difficulty to **{new_diff}** to reinforce concepts.")
+        else:
+            st.toast("🛡️ reinforcing basics at Easy level.")
+        
         # 2. Mistake Analysis
         mistake_type = mistake_agent.classify_mistake(q['question'], user_ans, correct_ans)
         learner_model.log_mistake(mistake_type)
         st.warning(f"⚠️ **Mistake Analysis:** {mistake_type}")
+
+
+    # 3. AI Tutor Feedback (Run Unconditionally)
+    st.markdown("---")
+    st.subheader("🤖 AI Tutor Analysis")
+    
+    with st.spinner("Analyzing your thought process..."):
+        explanation_data = content_agent.generate_explanation(
+            st.session_state.selected_topic, 
+            mistake_type, 
+            st.session_state.selected_level
+        )
+    
+    # Row 1: Focus & Root Cause
+    c1, c2 = st.columns(2)
+    with c1:
+        st.error(f"**Learning Focus:** {explanation_data.get('learning_focus', 'Topic Mastery')}")
+        st.markdown(f"**Why this happens:** {explanation_data.get('root_cause', 'N/A')}")
+    with c2:
+        st.info(f"**Concept:** {explanation_data.get('concept_explanation', 'N/A')}")
+        st.warning(f"💡 **Tip:** {explanation_data.get('practical_tip', 'N/A')}")
+
+    # Row 2: Code Example
+    with st.expander("📝 **Code Solution & Explanation**", expanded=True):
+        st.code(explanation_data.get('code_snippet', '# No code generated'), language='python')
+        st.caption(explanation_data.get('code_explanation', ''))
+
+    # 4. Personalized Readiness & Roadmap (Run Unconditionally)
+    st.markdown("---")
+    st.subheader("🚀 Readiness & Next Steps")
+    
+    with st.spinner("Constructing personalized learning path..."):
+        roadmap_data = roadmap_agent.generate_roadmap(
+            st.session_state.selected_topic, 
+            score, 
+            mistake_type, 
+            st.session_state.selected_level
+        )
         
-        # 3. Content Explanation
-        with st.expander("💡 AI Explanation"):
-            explanation = content_agent.generate_explanation(st.session_state.selected_topic, mistake_type)
-            st.write(explanation)
-
-    # 4. Roadmap & Resources
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info("🗺️ **Recommended Roadmap**")
-        roadmap = roadmap_agent.generate_roadmap(st.session_state.selected_topic, score)
-        for step in roadmap:
-            st.write(f"- {step}")
-
-    with col2:
-        st.info("📚 **Resources**")
-        resources = resource_agent.recommend_resources(st.session_state.selected_topic)
-        for res in resources:
-            st.markdown(f"- {res}")
+        # 1. Decision Banner
+        decision = roadmap_data.get('decision', 'CONTINUE LEARNING')
+        if "ADVANCE" in decision.upper():
+            st.success(f"**DECISION: {decision}**")
+        elif "REMEDIATE" in decision.upper() or "REINFORCE" in decision.upper():
+            st.error(f"**DECISION: {decision}**")
+        else:
+            st.warning(f"**DECISION: {decision}**")
             
-    if st.button("Start New Session"):
-        st.session_state.step = "setup"
-        st.session_state.current_question = None
-        st.rerun()
+        st.info(f"**Reasoning:** {roadmap_data.get('reason', 'Based on your recent performance.')}")
+        
+        # 2. Detailed Steps & Advice
+        c1, c2 = st.columns(2)
+        advice = roadmap_data.get('next_step_advice', {})
+        
+        with c1:
+            st.markdown(f"**🎯 Next Objective:** {advice.get('next_topic', 'Current Topic')}")
+            st.markdown(f"**⚡ Action:** {advice.get('action', 'Review')}")
+        with c2:
+            st.markdown(f"**🔥 Challenge:** {advice.get('tip_or_challenge', 'Keep coding!')}")
+        
+        # 3. Decision-Tailored Resources
+        st.markdown("### 📚 Tailored Resources")
+        decision_resources = roadmap_data.get('resources', [])
+        
+        if decision_resources:
+            for res in decision_resources:
+                if isinstance(res, dict):
+                    st.markdown(f"- **[{res.get('title', 'Resource')}]({res.get('url', '#')})**: {res.get('reason', 'Helpful link')}")
+                elif isinstance(res, str):
+                    st.markdown(f"- **[Resource]({res})**: Recommended link")
+                else:
+                    st.caption(f"Invalid resource format: {res}")
+        else:
+            # Fallback
+            fallback_res = resource_agent.recommend_resources(
+                st.session_state.selected_topic, mistake_type, st.session_state.selected_level
+            ).get('resources', [])
+            for res in fallback_res:
+                    st.markdown(f"- [{res['title']}]({res['url']})")
+        
+    col_next, col_new = st.columns([1, 1])
+    with col_next:
+        if st.button("➡️ Next Question (Adaptive)"):
+            st.session_state.step = "quiz"
+            st.session_state.user_answer = None
+            st.session_state.current_question = None
+            
+            # Use the UPDATED difficulty
+            with st.spinner(f"Adapting to {st.session_state.current_difficulty}..."):
+                q_data = question_agent.generate_question(st.session_state.selected_topic, st.session_state.current_difficulty)
+                if q_data:
+                    st.session_state.current_question = q_data
+                    st.rerun()
+                    
+    with col_new:
+        if st.button("🔄 Start Fresh Topic"):
+            st.session_state.step = "setup"
+            st.session_state.current_question = None
+            st.session_state.current_difficulty = None # Reset difficulty for new topic
+            st.rerun()
 
 # --- Sidebar ---
 with st.sidebar:
