@@ -1,4 +1,3 @@
-# roadmap_agent.py
 import ollama
 import json
 import learning_setup
@@ -32,21 +31,16 @@ def generate_roadmap(topic, score, mistake_type, level):
         
         Determine the next logical step and return strict JSON:
         {{
-            "decision": "READY TO ADVANCE",
+            "learning_roadmap": [
+                {{"action": "...", "why_it_matters": "...", "learn_here": "URL"}}
+            ],
+            "mastery_prediction": "Estimate mastery explicitly e.g., 90% - 95%.",
+            "readiness_decision": "READY TO ADVANCE",
             "reason": "Explain why they are ready and why '{next_topic}' is the right next step.",
-            "next_step_advice": {{
-                "next_topic": "{next_topic}",
-                "action": "Start learning {next_topic}",
-                "tip_or_challenge": "A specific preparation tip for {next_topic}"
-            }},
-            "resources": [
-                {{
-                    "title": "Preview: {next_topic}",
-                    "type": "Video / Article",
-                    "url": "Specific working URL",
-                    "reason": "To prepare for the next concept"
-                }}
-            ]
+            "next_step_guidance": {{
+                "next_step": "Suggest next topic '{next_topic}'",
+                "explanation": "Explain why it logically follows"
+            }}
         }}
         """
     else:
@@ -55,29 +49,23 @@ def generate_roadmap(topic, score, mistake_type, level):
         The learner studied '{topic}' (Level: {level}) and scored {score}%.
         The learner mistake: '{mistake_type}'.
 
-        Determine whether the learner should:
-        B) Continue learning this topic
-        C) Reinforce fundamentals before continuing
-
-        Return a strict JSON object with this structure:
+        Provide a structured roadmap returning strict JSON:
         {{
-            "decision": "CONTINUE LEARNING" or "REINFORCE FUNDAMENTALS",
+            "learning_roadmap": [
+                {{"action": "Action 1", "why_it_matters": "Why Action 1 matters", "learn_here": "Specific URL tutorial/video"}},
+                {{"action": "Action 2", "why_it_matters": "Why Action 2 matters", "learn_here": "Specific URL practice"}}
+            ],
+            "mastery_prediction": "Estimate mastery explicitly e.g., 85% - 90% after completing this roadmap",
+            "readiness_decision": "Choose exactly ONE: CONTINUE LEARNING or REINFORCE FUNDAMENTALS",
             "reason": "Why this decision was made",
-            "next_step_advice": {{
-                "next_topic": "{topic}",
-                "action": "What specifically to practice",
-                "tip_or_challenge": "An intermediate challenge (if Continuing) or simple practice step (if Reinforcing)"
-            }},
-            "resources": [
-                {{
-                    "title": "Resource Title",
-                    "type": "Video / Article / Practice",
-                    "url": "Specific working URL",
-                    "reason": "Why useful for remediation"
-                }}
-            ]
+            "next_step_guidance": {{
+                "next_step": "Suggest intermediate challenge (if Continuing) or simple corrective practice step (if Reinforcing)",
+                "explanation": "Why this is the correct next step"
+            }}
         }}
         """
+        
+    prompt += "\nDo not use markdown formatting in the JSON keys."
     
     try:
         response = ollama.chat(model='phi3', messages=[
@@ -87,12 +75,14 @@ def generate_roadmap(topic, score, mistake_type, level):
     except Exception as e:
         print(f"Roadmap Error: {e}")
         return {
-            "decision": "CONTINUE LEARNING",
+            "learning_roadmap": [
+                {"action": "Review core concepts", "why_it_matters": "Foundations are key", "learn_here": "https://www.google.com"}
+            ],
+            "mastery_prediction": "70-80%",
+            "readiness_decision": "CONTINUE LEARNING",
             "reason": "Error generating plan.",
-            "next_step_advice": {
-                "next_topic": topic,
-                "action": "Review core concepts",
-                "tip_or_challenge": "Try writing the code by hand."
-            },
-            "resources": []
+            "next_step_guidance": {
+                "next_step": "Try the question again",
+                "explanation": "Repetition builds retention"
+            }
         }

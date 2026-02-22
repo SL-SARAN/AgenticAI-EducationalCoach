@@ -1,26 +1,24 @@
-# resource_agent.py
 import ollama
 import json
 
 def recommend_resources(topic, mistake_type, level):
     prompt = f"""
-    Recommend 3 specific learning resources for '{topic}' (Level: {level}) addressing mistake: '{mistake_type}'.
-    Also create ONE specific practice problem for them to try.
+    Act as an intelligent learning coach.
+    Recommend strictly 3 high-quality learning resources (1 visual video, 1 tutorial article, 1 interactive practice platform) for '{topic}' (Level: {level}) addressing mistake: '{mistake_type}'.
+    Also create ONE specific practical exercise tailored to the learner's weakness.
     
     Return strict JSON:
     {{
-        "resources": [
+        "smart_resources": [
             {{
                 "title": "Resource Name",
-                "type": "Video / Article / Practice",
-                "url": "Specific URL",
-                "reason": "Why this helps"
+                "why_useful": "Why this helps",
+                "link": "Specific direct and working URL for {topic}"
             }}
         ],
-        "practice_problem": {{
-            "title": "Problem Title",
-            "description": "Short problem description",
-            "skill_strengthened": "The specific skill this practices",
+        "targeted_practice": {{
+            "task_description": "Practical exercise description",
+            "skill_built": "The specific skill this practices",
             "hint": "A subtle hint"
         }}
     }}
@@ -33,13 +31,15 @@ def recommend_resources(topic, mistake_type, level):
         return json.loads(response['message']['content'])
     except Exception as e:
         print(f"Resource Error: {e}")
-        base_url = "https://www.google.com/search?q="
         return {
-            "resources": [],
-            "practice_problem": {
-                "title": f"Practice {topic}",
-                "description": "Write a simple function using this concept.",
-                "skill_strengthened": "Basic Syntax",
-                "hint": "Check the docs."
+            "smart_resources": [
+                {"title": f"{topic} Video", "why_useful": "Visual explanation", "link": "https://www.youtube.com"},
+                {"title": f"{topic} Article", "why_useful": "Written instructions", "link": "https://www.wikipedia.org"},
+                {"title": f"{topic} Practice", "why_useful": "Hands-on coding", "link": "https://www.hackerrank.com"}
+            ],
+            "targeted_practice": {
+                "task_description": "Write a simple function using this concept.",
+                "skill_built": "Basic Syntax",
+                "hint": "Check the official Python docs."
             }
         }
