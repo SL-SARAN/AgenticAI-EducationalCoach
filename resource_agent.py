@@ -1,21 +1,18 @@
 import ollama
 import json
+import urllib.parse
 
 def recommend_resources(topic, mistake_type, level):
     prompt = f"""
     Act as an intelligent learning coach.
-    Recommend strictly 3 high-quality learning resources (1 visual video, 1 tutorial article, 1 interactive practice platform) for '{topic}' (Level: {level}) addressing mistake: '{mistake_type}'.
-    Also create ONE specific practical exercise tailored to the learner's weakness.
+    The learner studied '{topic}' (Level: {level}) and made a mistake related to: '{mistake_type}'.
+    
+    1. Analyze this mistake and provide `resource_advice` explaining WHICH TYPE of resource (Video, Tutorial, or Practice Problem) they should prioritize first and why.
+    2. Create ONE highly specific practical exercise tailored to their weakness.
     
     Return strict JSON:
     {{
-        "smart_resources": [
-            {{
-                "title": "Resource Name",
-                "why_useful": "Why this helps",
-                "link": "Specific direct and working URL for {topic}"
-            }}
-        ],
+        "resource_advice": "Advice on whether to start with videos, tutorials, or practice, and why based on their mistake.",
         "targeted_practice": {{
             "task_description": "Practical exercise description",
             "skill_built": "The specific skill this practices",
@@ -28,18 +25,42 @@ def recommend_resources(topic, mistake_type, level):
         response = ollama.chat(model='phi3', messages=[
              {'role': 'user', 'content': prompt}
         ], format='json')
-        return json.loads(response['message']['content'])
+        result = json.loads(response['message']['content'])
     except Exception as e:
         print(f"Resource Error: {e}")
-        return {
-            "smart_resources": [
-                {"title": f"{topic} Video", "why_useful": "Visual explanation", "link": "https://www.youtube.com"},
-                {"title": f"{topic} Article", "why_useful": "Written instructions", "link": "https://www.wikipedia.org"},
-                {"title": f"{topic} Practice", "why_useful": "Hands-on coding", "link": "https://www.hackerrank.com"}
-            ],
+        result = {
+            "resource_advice": "Start with a video tutorial to visually grasp the fundamental concept, then move to coding practice.",
             "targeted_practice": {
-                "task_description": "Write a simple function using this concept.",
-                "skill_built": "Basic Syntax",
-                "hint": "Check the official Python docs."
+                "task_description": f"Write a simple function applying the core concept of {topic}.",
+                "skill_built": "Basic Syntax & Logic",
+                "hint": "Check the official Python documentation for standard examples."
             }
         }
+        
+    # Programmatically generate safe search links
+    encoded_topic = urllib.parse.quote(topic)
+    
+    result["dynamic_links"] = [
+        {
+            "icon": "🎥",
+            "title": "Watch Video Explanations",
+            "url": f"https://www.youtube.com/results?search_query={encoded_topic}+programming+tutorial"
+        },
+        {
+            "icon": "📘",
+            "title": "Read Tutorials",
+            "url": f"https://www.google.com/search?q={encoded_topic}+tutorial+programming+example"
+        },
+        {
+            "icon": "💻",
+            "title": "Practice Problems",
+            "url": f"https://www.google.com/search?q=site:leetcode.com+OR+site:hackerrank.com+{encoded_topic}"
+        },
+        {
+            "icon": "📖",
+            "title": "Explore Documentation",
+            "url": f"https://www.google.com/search?q={encoded_topic}+documentation+programming"
+        }
+    ]
+    
+    return result

@@ -303,8 +303,9 @@ elif st.session_state.step == "result":
     with c_res:
         # 6️⃣ Smart Resources
         st.markdown("### 6️⃣ Smart Resources")
-        for res in resource_data.get('smart_resources', []):
-            st.markdown(f"- **[{res.get('title', 'Resource')}]({res.get('link', '#')})**: {res.get('why_useful', '')}")
+        st.info(f"**AI Advice:** {resource_data.get('resource_advice', 'Review the topic conceptually before practicing.')}")
+        for link_obj in resource_data.get('dynamic_links', []):
+            st.markdown(f"- {link_obj['icon']} **[{link_obj['title']}]({link_obj['url']})**")
             
     with c_prac:
         # 7️⃣ Targeted Practice Exercise

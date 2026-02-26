@@ -5,7 +5,8 @@
         "Strings": 100,
         "Stack": 100,
         "Queue": 100,
-        "Machine Learning Basics": 0
+        "Machine Learning Basics": 0,
+        "Natural Language Processing": 100
     },
     "mistake_history": {
         "Order Confusion. The student's answer does not match the expected sequence of options provided, suggesting confusion in selecting or understanding the correct option order or label associations with array concepts. This type of error is typically indicative that a learner may have misconstrue how arrays are used and structured within programming languages due to this ordering issue rather than misunderstanding what an array fundamentally represents (a concept).": 1,
@@ -21,6 +22,7 @@
         "- Syntax/Base Missing": 1,
         "- Concept Confusion\n\nThis error falls under \"Concept Confusion\" as it reflects a misunderstanding of what an array is within programming, likely confusing its definition with that of some other data structure or concept (C being related to Computer Science notation). The student's answer suggests they know the options but have picked one incorrectly.": 1,
         "Order Confusion\n\nExplanation for a possible alternative categorization (e.g., if this were an actual misunderstanding of terminology): This error might also be classified as \"Concept Confusion\" because the student is confused between different terms within machine learning concepts, incorrectly associating 'B' with performance on new data when it should relate to generalizability or transferability (which are related but distinct notions). However, since no actual confusion about specific ML concepts like overfitting/underfitting was mentioned and there were likely issues in recalling the term rather than understanding them incorrectly, \"Order Confusion\" is more fitting as per provided context.": 1,
-        "Concept Confusion\n\n\nThe student's answer indicates a misunderstanding of terms related to generalization from examples, which suggests confusion between different concepts or terminologies within this domain (e.g., they might have confused 'Data-Driven Model,' 'Adaptive Model,' etc.). This type of error is categorized as Concept Confusion because the student's answer shows a lack of clear understanding regarding terms in machine learning models that learn from examples, rather than an error related to ordering or syntax.": 1
+        "Concept Confusion\n\n\nThe student's answer indicates a misunderstanding of terms related to generalization from examples, which suggests confusion between different concepts or terminologies within this domain (e.g., they might have confused 'Data-Driven Model,' 'Adaptive Model,' etc.). This type of error is categorized as Concept Confusion because the student's answer shows a lack of clear understanding regarding terms in machine learning models that learn from examples, rather than an error related to ordering or syntax.": 1,
+        "Concept Confusion": 1
     }
 }
