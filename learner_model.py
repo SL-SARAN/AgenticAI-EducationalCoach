@@ -5,7 +5,7 @@ import os
 DATA_FILE = "learner_data.json"
 
 def initialize_db():
-    if not os.path.exists(DATA_FILE):
+    if not os.path.exists(DATA_FILE) or os.path.getsize(DATA_FILE) == 0:
         default_data = {
             "name": "Learner",
             "topic_scores": {},  # "Topic": score (0-100)
@@ -14,13 +14,24 @@ def initialize_db():
         save_data(default_data)
 
 def load_data():
-    if not os.path.exists(DATA_FILE):
+    if not os.path.exists(DATA_FILE) or os.path.getsize(DATA_FILE) == 0:
         initialize_db()
     try:
         with open(DATA_FILE, "r") as f:
-            return json.load(f)
+            data = json.load(f)
+            # Ensure baseline structure exists
+            if not isinstance(data, dict):
+                data = {}
+            data.setdefault("name", "Learner")
+            data.setdefault("topic_scores", {})
+            data.setdefault("mistake_history", {})
+            return data
     except Exception:
-        return {}
+        return {
+            "name": "Learner",
+            "topic_scores": {},
+            "mistake_history": {}
+        }
 
 def save_data(data):
     try:
