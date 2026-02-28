@@ -1,5 +1,6 @@
 import ollama
 import json
+import llm_utils
 
 def generate_learning_path(goal):
     prompt = f"""
@@ -30,31 +31,26 @@ def generate_learning_path(goal):
     }}
     """
     
-    try:
-        response = ollama.chat(model='phi3', messages=[
-             {'role': 'user', 'content': prompt}
-        ], format='json')
-        return json.loads(response['message']['content'])
-    except Exception as e:
-        print(f"Goal Error: {e}")
-        return {
-            "personalized_learning_path": {
-                "recommended_topics": ["Fundamentals", "Core Concepts"],
-                "learning_order": "Start basic, move to advanced.",
-                "prerequisites": ["None"],
-                "difficulty": "Beginner",
-                "estimated_time": "2 weeks",
-                "key_success_tip": "Practice daily."
-            },
-            "suggested_starting_topic": "Fundamentals",
-            "weekly_milestones": {
-                "week_1_focus": "Understand the basics.",
-                "week_2_focus": "Build a small project."
-            },
-            "practice_recommendations": {
-                "platform": "LeetCode / HackerRank",
-                "project_idea": "Simple CLI tool",
-                "real_world_app": "Core logic in any application."
-            },
-            "career_relevance": "Foundational knowledge required for all technical interviews."
-        }
+    fallback = {
+        "personalized_learning_path": {
+            "recommended_topics": ["Fundamentals", "Core Concepts"],
+            "learning_order": "Start basic, move to advanced.",
+            "prerequisites": ["None"],
+            "difficulty": "Beginner",
+            "estimated_time": "2 weeks",
+            "key_success_tip": "Practice daily."
+        },
+        "suggested_starting_topic": "Fundamentals",
+        "weekly_milestones": {
+            "week_1_focus": "Understand the basics.",
+            "week_2_focus": "Build a small project."
+        },
+        "practice_recommendations": {
+            "platform": "LeetCode / HackerRank",
+            "project_idea": "Simple CLI tool",
+            "real_world_app": "Core logic in any application."
+        },
+        "career_relevance": "Foundational knowledge required for all technical interviews."
+    }
+    
+    return llm_utils.safe_json_chat(prompt, fallback)

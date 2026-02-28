@@ -1,6 +1,7 @@
 # question_agent.py
 import ollama
 import json
+import llm_utils
 
 def generate_question(topic, difficulty):
     prompt = f"""
@@ -25,19 +26,11 @@ def generate_question(topic, difficulty):
     }}
     """
     
-    try:
-        response = ollama.chat(model='phi3', messages=[
-            {'role': 'user', 'content': prompt}
-        ], format='json')
-        
-        content = response['message']['content']
-        return json.loads(content)
-    except Exception as e:
-        print(f"Error generating question: {e}")
-        # Fallback question if AI fails
-        return {
-            "question": f"What is a key concept in {topic}?",
-            "options": {"A": "Concept 1", "B": "Concept 2", "C": "Concept 3", "D": "Concept 4"},
-            "correct_answer": "A",
-            "mistake_map": {"A": "Correct", "B": "Wrong", "C": "Wrong", "D": "Wrong"}
-        }
+    fallback = {
+        "question": f"What is a key concept in {topic}?",
+        "options": {"A": "Concept 1", "B": "Concept 2", "C": "Concept 3", "D": "Concept 4"},
+        "correct_answer": "A",
+        "mistake_map": {"A": "Correct", "B": "Wrong", "C": "Wrong", "D": "Wrong"}
+    }
+    
+    return llm_utils.safe_json_chat(prompt, fallback)

@@ -1,6 +1,7 @@
 import ollama
 import json
 import urllib.parse
+import llm_utils
 
 def recommend_resources(topic, mistake_type, level):
     prompt = f"""
@@ -21,21 +22,16 @@ def recommend_resources(topic, mistake_type, level):
     }}
     """
     
-    try:
-        response = ollama.chat(model='phi3', messages=[
-             {'role': 'user', 'content': prompt}
-        ], format='json')
-        result = json.loads(response['message']['content'])
-    except Exception as e:
-        print(f"Resource Error: {e}")
-        result = {
-            "resource_advice": "Start with a video tutorial to visually grasp the fundamental concept, then move to coding practice.",
-            "targeted_practice": {
-                "task_description": f"Write a simple function applying the core concept of {topic}.",
-                "skill_built": "Basic Syntax & Logic",
-                "hint": "Check the official Python documentation for standard examples."
-            }
+    fallback = {
+        "resource_advice": "Start with a video tutorial to visually grasp the fundamental concept, then move to coding practice.",
+        "targeted_practice": {
+            "task_description": f"Write a simple function applying the core concept of {topic}.",
+            "skill_built": "Basic Syntax & Logic",
+            "hint": "Check the official Python documentation for standard examples."
         }
+    }
+    
+    result = llm_utils.safe_json_chat(prompt, fallback)
         
     # Programmatically generate safe search links
     encoded_topic = urllib.parse.quote(topic)

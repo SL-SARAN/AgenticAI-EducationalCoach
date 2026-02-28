@@ -1,5 +1,6 @@
 import ollama
 import json
+import llm_utils
 
 def generate_explanation(topic, mistake_type, user_level):
     if "None" in mistake_type or "Correct" in mistake_type:
@@ -48,23 +49,19 @@ def generate_explanation(topic, mistake_type, user_level):
         """
         
     prompt += "\nDo not use markdown formatting in the JSON keys."
-    try:
-        response = ollama.chat(model='phi3', messages=[
-             {'role': 'user', 'content': prompt}
-        ], format='json')
-        return json.loads(response['message']['content'])
-    except Exception as e:
-        print(f"Content Error: {e}")
-        return {
-            "learning_focus": f"{topic} Fundamentals",
-            "knowledge_gap_profile": ["Core concepts related to the problem"],
-            "why_mistake_happens": "Common logical error.",
-            "ai_explanation": {
-                "beginner_explanation": "Review the basic syntax and logic flow.",
-                "step_by_step_correction": "Trace your code logic.",
-                "sample_code": f"# Example for {topic}\nprint('Hello World')",
-                "code_comments": "Standard example.",
-                "practical_tip": "Trace your code manually."
-            },
-            "why_this_matters": "Fundamental for all software engineering."
-        }
+    
+    fallback = {
+        "learning_focus": f"{topic} Fundamentals",
+        "knowledge_gap_profile": ["Core concepts related to the problem"],
+        "why_mistake_happens": "Common logical error.",
+        "ai_explanation": {
+            "beginner_explanation": "Review the basic syntax and logic flow.",
+            "step_by_step_correction": "Trace your code logic.",
+            "sample_code": f"# Example for {topic}\nprint('Hello World')",
+            "code_comments": "Standard example.",
+            "practical_tip": "Trace your code manually."
+        },
+        "why_this_matters": "Fundamental for all software engineering."
+    }
+    
+    return llm_utils.safe_json_chat(prompt, fallback)

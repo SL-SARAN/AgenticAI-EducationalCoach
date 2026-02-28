@@ -1,6 +1,7 @@
 import ollama
 import json
 import learning_setup
+import llm_utils
 
 def generate_roadmap(topic, score, mistake_type, level):
     is_success = score >= 80 or "None" in mistake_type or "Correct" in mistake_type
@@ -67,22 +68,17 @@ def generate_roadmap(topic, score, mistake_type, level):
         
     prompt += "\nDo not use markdown formatting in the JSON keys."
     
-    try:
-        response = ollama.chat(model='phi3', messages=[
-             {'role': 'user', 'content': prompt}
-        ], format='json')
-        return json.loads(response['message']['content'])
-    except Exception as e:
-        print(f"Roadmap Error: {e}")
-        return {
-            "learning_roadmap": [
-                {"action": "Review core concepts", "why_it_matters": "Foundations are key", "learn_here": "https://www.google.com"}
-            ],
-            "mastery_prediction": "70-80%",
-            "readiness_decision": "CONTINUE LEARNING",
-            "reason": "Error generating plan.",
-            "next_step_guidance": {
-                "next_step": "Try the question again",
-                "explanation": "Repetition builds retention"
-            }
+    fallback = {
+        "learning_roadmap": [
+            {"action": "Review core concepts", "why_it_matters": "Foundations are key", "learn_here": "https://www.google.com"}
+        ],
+        "mastery_prediction": "70-80%",
+        "readiness_decision": "CONTINUE LEARNING",
+        "reason": "Error generating plan.",
+        "next_step_guidance": {
+            "next_step": "Try the question again",
+            "explanation": "Repetition builds retention"
         }
+    }
+    
+    return llm_utils.safe_json_chat(prompt, fallback)

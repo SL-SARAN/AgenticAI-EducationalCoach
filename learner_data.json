@@ -1,8 +1,12 @@
 {
     "name": "Learner",
     "topic_scores": {
+        "Linear Regression": 100,
+        "Python": 0,
+        "Machine Learning Basics": 0
     },
-    "mistake_history": { 
-
+    "mistake_history": {
+        "Concept Confusion\n\nThe student likely misunderstood that in Python, single quotes ('A') are used for defining strings and double or triple quotes (''', \"\"\"\", \u201c\"\u201c) are used to define multi-line comments or docstrings which can also contain executable code. The correct way to represent the function definition would use a pair of matching triple quotes:\n\n```python\ndef multiply(x, y):\n    '''Returns the product of x and y'''  # This is just an example comment using triple quotes for clarity; it's not necessary in actual code.\n    return x*y\n```\nThe incorrect single quote usage here suggests a confusion between defining strings ('A') and function definitions or multi-line comments/docstrings that use triple quotes as shown above, which falls under concept misunderstanding (Concept Confusion).": 1,
+        "- Concept Confusion": 1
     }
 }
