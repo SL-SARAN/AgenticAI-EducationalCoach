@@ -8,8 +8,13 @@ import content_agent
 import roadmap_agent
 import resource_agent
 import goal_agent
+import database
+import goal_manager
 
 st.set_page_config(page_title="Autonomous Learning Coach", layout="wide")
+
+# --- Initialize SQLite database on startup ---
+database.initialize_db()
 
 # --- Session State Management ---
 if "step" not in st.session_state:
@@ -28,6 +33,10 @@ if "learning_objective" not in st.session_state:
     st.session_state.learning_objective = None
 if "generated_path" not in st.session_state:
     st.session_state.generated_path = None
+if "active_goal_id" not in st.session_state:
+    st.session_state.active_goal_id = None
+if "goal_duration" not in st.session_state:
+    st.session_state.goal_duration = 14
 
 # --- UI Layout ---
 st.title("🎓 Autonomous Learning Coach")
@@ -39,11 +48,18 @@ if st.session_state.step == "goal_setting":
     
     goal = st.text_input("Enter your goal (e.g., 'Master Python for data engineering', 'Learn Data Structures for placements')")
     level = st.selectbox("Select Your Current Level", learning_setup.get_levels())
+    duration = st.slider("⏱️ Goal Duration (days)", min_value=7, max_value=90, value=14, step=7)
     
     if st.button("Generate Learning Path"):
         if goal:
             st.session_state.learning_objective = goal
             st.session_state.selected_level = level
+            st.session_state.goal_duration = duration
+            learner_model.update_goal(goal)
+            learner_model.update_level(level)
+            # Create goal in SQLite and generate topic plan
+            new_goal_id = goal_manager.create_goal(1, goal, duration)
+            st.session_state.active_goal_id = new_goal_id
             with st.spinner("Analyzing your goal and building a personalized roadmap..."):
                 st.session_state.generated_path = goal_agent.generate_learning_path(goal)
                 st.session_state.step = "path_review"
@@ -118,6 +134,11 @@ elif st.session_state.step == "path_review":
     col_start, col_back = st.columns([1, 5])
     with col_start:
         if st.button("🚀 Start Assessment"):
+            # Use goal-based topic if an active goal exists
+            if st.session_state.active_goal_id:
+                goal_topic = goal_manager.get_current_topic(st.session_state.active_goal_id)
+                if goal_topic:
+                    selected = goal_topic
             st.session_state.selected_topic = selected
             st.session_state.current_difficulty = difficulty_mapper.map_level_to_difficulty(st.session_state.selected_level)
             
@@ -177,7 +198,7 @@ elif st.session_state.step == "result":
         st.success(f"✅ Correct! The answer was {correct_ans}.")
         score = 100
         mistake_type = "None (Correct Answer)"
-        learner_model.update_score(st.session_state.selected_topic, score)
+        learner_model.update_progress(st.session_state.selected_topic, score)
         
         # Increase Difficulty
         if current_idx < len(DIFFICULTY_LEVELS) - 1:
@@ -190,7 +211,7 @@ elif st.session_state.step == "result":
     else:
         st.error(f"❌ Incorrect. You chose {user_ans}, but the correct answer was {correct_ans}.")
         score = 0
-        learner_model.update_score(st.session_state.selected_topic, score)
+        learner_model.update_progress(st.session_state.selected_topic, score)
         
         # Decrease Difficulty
         if current_idx > 0:
@@ -202,8 +223,25 @@ elif st.session_state.step == "result":
         
         # 2. Mistake Analysis
         mistake_type = mistake_agent.classify_mistake(q['question'], user_ans, correct_ans)
-        learner_model.log_mistake(mistake_type)
+        mistake_type = learner_model.normalize_mistake_key(mistake_type)
+        learner_model.update_mistake(mistake_type)
+        # Log mistake to SQLite
+        goal_manager.log_mistake_to_db(1, mistake_type)
         st.warning(f"⚠️ **Mistake Analysis:** {mistake_type}")
+
+    # --- Goal-based tracking: mark topic + log progress + schedule check ---
+    goal_manager.log_progress_to_db(1, st.session_state.selected_topic, score)
+    if st.session_state.active_goal_id:
+        goal_manager.mark_topic_completed(
+            st.session_state.active_goal_id,
+            st.session_state.selected_topic,
+            score
+        )
+        schedule_status = goal_manager.check_schedule_status(st.session_state.active_goal_id)
+        if schedule_status != "on_track":
+            goal_manager.adjust_learning_plan(st.session_state.active_goal_id, schedule_status)
+            status_label = schedule_status.replace('_', ' ').title()
+            st.toast(f"📅 Schedule: **{status_label}** — plan adjusted automatically.")
 
 
     # 3. AI Tutor Feedback (Run Unconditionally)
@@ -233,11 +271,44 @@ elif st.session_state.step == "result":
     st.markdown("### 4️⃣ AI Explanation")
     ai_exp = explanation_data.get('ai_explanation', {})
     st.info(f"**Explanation:** {ai_exp.get('beginner_explanation', 'N/A')}")
-    st.markdown(f"**Correction Steps:** {ai_exp.get('step_by_step_correction', 'N/A')}")
+
+    # --- Correction Steps: handle both string and list-of-dicts ---
+    raw_steps = ai_exp.get('step_by_step_correction', 'N/A')
+    if isinstance(raw_steps, list):
+        st.markdown("**Correction Steps:**")
+        for step_item in raw_steps:
+            if isinstance(step_item, dict):
+                for key, val in step_item.items():
+                    st.markdown(f"- **{key}:** {val}")
+            else:
+                st.markdown(f"- {step_item}")
+    else:
+        st.markdown(f"**Correction Steps:** {raw_steps}")
     
     with st.expander("📝 **Sample Code & Comments**", expanded=True):
-        st.code(ai_exp.get('sample_code', '# No code generated'), language='python')
-        st.caption(ai_exp.get('code_comments', ''))
+        # --- Sample Code: handle list-of-dicts with 'Code Snippet' keys ---
+        raw_code = ai_exp.get('sample_code', '# No code generated')
+        if isinstance(raw_code, list):
+            for code_item in raw_code:
+                if isinstance(code_item, dict):
+                    for key, snippet in code_item.items():
+                        st.code(snippet, language='python')
+                else:
+                    st.code(str(code_item), language='python')
+        else:
+            st.code(raw_code, language='python')
+
+        # --- Code Comments: handle list-of-dicts ---
+        raw_comments = ai_exp.get('code_comments', '')
+        if isinstance(raw_comments, list):
+            for comment_item in raw_comments:
+                if isinstance(comment_item, dict):
+                    for key, val in comment_item.items():
+                        st.caption(f"💬 {val}")
+                else:
+                    st.caption(str(comment_item))
+        else:
+            st.caption(raw_comments)
         
     st.warning(f"💡 **Practical Tip:** {ai_exp.get('practical_tip', 'N/A')}")
     
@@ -260,6 +331,11 @@ elif st.session_state.step == "result":
             mistake_type, 
             st.session_state.selected_level
         )
+
+        # --- Track current focus from roadmap output ---
+        nsg_focus = roadmap_data.get('next_step_guidance', {})
+        focus_next = nsg_focus.get('next_step', '') if isinstance(nsg_focus, dict) else ''
+        learner_model.update_focus(st.session_state.selected_topic, focus_next)
         
         # 🔟 Readiness Decision
         raw_decision = roadmap_data.get('readiness_decision', 'CONTINUE LEARNING')
@@ -344,29 +420,100 @@ elif st.session_state.step == "result":
             st.session_state.current_difficulty = None
             st.session_state.learning_objective = None
             st.session_state.generated_path = None
+            st.session_state.active_goal_id = None
             st.rerun()
 
-# --- Sidebar ---
+# --- Sidebar: Learner Analytics Dashboard ---
 with st.sidebar:
-    st.header("Learner Profile")
-    if st.session_state.learning_objective:
-        st.success(f"**Current Goal:**\n{st.session_state.learning_objective}")
-        
     data = learner_model.load_data()
-    st.write(f"**Name:** {data.get('name', 'Learner')}")
-    
-    st.write("### 📊 Topic Scores")
+
+    # ── 👤 Learner Profile ──
+    st.markdown("### 👤 Learner Profile")
+    st.markdown(f"**Name:** {data.get('name', 'Learner')}")
+    st.markdown(f"**Level:** {data.get('level', 'Beginner')}")
+    goal = data.get('goal', '') or (st.session_state.learning_objective or '')
+    if goal:
+        st.markdown(f"**Goal:** {goal}")
+
+    st.divider()
+
+    # ── 📊 Learning Progress ──
+    st.markdown("### 📊 Learning Progress")
     scores = data.get("topic_scores", {})
     if scores:
-        for t, s in scores.items():
-            st.write(f"**{t}**: {s}%")
-            st.progress(s)
+        # Show first 6 topics only to avoid sidebar clutter
+        shown = dict(list(scores.items())[:6])
+        for topic_name, pct in shown.items():
+            pct_val = max(0, min(int(pct), 100))
+            st.markdown(f"**{topic_name}** — {pct_val}%")
+            st.progress(pct_val / 100)
+        if len(scores) > 6:
+            st.caption(f"+ {len(scores) - 6} more topics…")
     else:
-        st.caption("No scores yet.")
-        
-    st.write("### ⚠️ Mistake History")
+        st.caption("No scores yet. Take a quiz to start tracking!")
+
+    st.divider()
+
+    # ── ⚠ Top Weak Areas ──
+    st.markdown("### ⚠ Top Weak Areas")
     mistakes = data.get("mistake_history", {})
     if mistakes:
-        for m, c in mistakes.items():
-            st.write(f"- {m}: {c}")
+        # Sort by count descending so worst areas are first
+        sorted_mistakes = sorted(mistakes.items(), key=lambda x: x[1], reverse=True)
+        for m_type, m_count in sorted_mistakes:
+            st.markdown(f"**{m_type}** — {m_count}")
+    else:
+        st.caption("No mistakes recorded yet. Keep learning!")
 
+    st.divider()
+
+    # ── 🎯 Current Focus ──
+    st.markdown("### 🎯 Current Focus")
+    focus = data.get("current_focus", {})
+    focus_topic = focus.get("current_topic", "")
+    focus_step = focus.get("next_step", "")
+    if focus_topic:
+        st.markdown(f"**Topic:** {focus_topic}")
+        st.markdown(f"**Next Step:** {focus_step or 'Continue practicing this topic'}")
+    else:
+        st.caption("Start a quiz to set your learning focus.")
+
+    st.divider()
+
+    # ── 📋 Goal Dashboard ──
+    st.markdown("### 📋 Goal Dashboard")
+
+    # Recover active_goal_id from DB if session lost it
+    if not st.session_state.active_goal_id:
+        db_goal = goal_manager.get_active_goal(1)
+        if db_goal:
+            st.session_state.active_goal_id = db_goal["id"]
+
+    if st.session_state.active_goal_id:
+        active_goal = goal_manager.get_active_goal(1)
+        if active_goal:
+            st.markdown(f"**Goal:** {active_goal['goal_text']}")
+            st.markdown(f"**Deadline:** {active_goal['deadline']}")
+
+            progress_pct = goal_manager.calculate_progress(active_goal['id'])
+            st.markdown(f"**Progress:** {progress_pct}%")
+            st.progress(progress_pct / 100)
+
+            sched = goal_manager.check_schedule_status(active_goal['id'])
+            if sched == "on_track":
+                st.success("✅ On Track")
+            elif sched == "behind_schedule":
+                st.error("⚠️ Behind Schedule")
+            elif sched == "ahead_of_schedule":
+                st.info("🚀 Ahead of Schedule")
+
+            # Topic checklist
+            st.markdown("**Topics:**")
+            topics_list = goal_manager.get_goal_topics(active_goal['id'])
+            for t in topics_list:
+                icon = "✔" if t["completed"] else "◻"
+                st.markdown(f"{icon} {t['topic_name']}")
+        else:
+            st.caption("No active goal. Set one to get started!")
+    else:
+        st.caption("No active goal. Set one to get started!")

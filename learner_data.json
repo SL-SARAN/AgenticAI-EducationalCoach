@@ -1,5 +1,31 @@
 {
     "name": "Learner",
-    "topic_scores": {},
-    "mistake_history": {}
+    "level": "Beginner",
+    "goal": "java",
+    "topic_scores": {
+        "Variables and Data Types": 100
+    },
+    "mistake_history": {
+        "Concept Confusion": 3,
+        "Order Confusion": 2
+    },
+    "progress_history": {
+        "Machine Learning Basics": [
+            0
+        ],
+        "Variables and Data Types": [
+            100,
+            100
+        ],
+        "Arrays": [
+            0,
+            0,
+            0,
+            0
+        ]
+    },
+    "current_focus": {
+        "current_topic": "Arrays",
+        "next_step": "Intermediate Challenge: Implementing Array Methods"
+    }
 }

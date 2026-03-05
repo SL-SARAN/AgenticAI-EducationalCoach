@@ -1,10 +1,12 @@
 import json
+import re
 import ollama
 
-def safe_json_chat(prompt, fallback, model='phi3', max_retries=2):
+def safe_json_chat(prompt, fallback, model='phi3', max_retries=3):
     """
     Safely executes an LLM chat expecting JSON output.
     Retries automatically if the LLM produces invalid JSON.
+    Falls back to regex extraction if standard parsing fails.
     """
     prompt_appended = prompt + "\n\nIMPORTANT: Ensure your output is perfectly valid JSON. Escape any double quotes inside string values using \\\"."
     
@@ -18,8 +20,17 @@ def safe_json_chat(prompt, fallback, model='phi3', max_retries=2):
             content = response['message']['content']
             if not content.strip():
                 continue
-                
-            return json.loads(content, strict=False)
+            
+            # Try standard parse first
+            try:
+                return json.loads(content, strict=False)
+            except json.JSONDecodeError:
+                # Fallback: try to extract JSON object from the response
+                match = re.search(r'\{[\s\S]*\}', content)
+                if match:
+                    return json.loads(match.group(), strict=False)
+                raise  # re-raise if no match found
+
         except json.JSONDecodeError as e:
             error_msg = f"JSON Parse Error on attempt {attempt+1}: {e}"
             print(error_msg)
@@ -28,5 +39,6 @@ def safe_json_chat(prompt, fallback, model='phi3', max_retries=2):
             print(f"LLM General Error: {e}")
             break
             
-    print("Max retries exceeded or critical error. Falling back to default data.")
+    print("  Stopping...")
     return fallback
+
