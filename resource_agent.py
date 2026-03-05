@@ -1,4 +1,3 @@
-import ollama
 import json
 import urllib.parse
 import llm_utils

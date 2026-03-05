@@ -1,4 +1,3 @@
-import ollama
 import json
 import learning_setup
 import llm_utils

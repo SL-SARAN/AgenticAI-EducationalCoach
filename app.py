@@ -130,10 +130,20 @@ elif st.session_state.step == "path_review":
         active_topics.insert(0, starting_topic)
         
     selected = st.selectbox("Confirm or Change your starting topic:", active_topics, index=0)
+
+    # Detect topic change and reset quiz state
+    if st.session_state.selected_topic != selected:
+        st.session_state.selected_topic = selected
+        st.session_state.current_question = None
+        st.session_state.user_answer = None
     
     col_start, col_back = st.columns([1, 5])
     with col_start:
         if st.button("🚀 Start Assessment"):
+            # Reset previous quiz state
+            st.session_state.current_question = None
+            st.session_state.user_answer = None
+
             # Use goal-based topic if an active goal exists
             if st.session_state.active_goal_id:
                 goal_topic = goal_manager.get_current_topic(st.session_state.active_goal_id)
@@ -144,7 +154,7 @@ elif st.session_state.step == "path_review":
             
             with st.spinner(f"Generating question on {selected}..."):
                 q_data = question_agent.generate_question(selected, st.session_state.current_difficulty)
-                if q_data and "question" in q_data:
+                if q_data and isinstance(q_data, dict) and "question" in q_data:
                     st.session_state.current_question = q_data
                     st.session_state.step = "quiz"
                     st.rerun()
@@ -192,7 +202,10 @@ elif st.session_state.step == "result":
     
     DIFFICULTY_LEVELS = ["Easy", "Easy-Medium", "Medium", "Hard"]
     current_diff = st.session_state.current_difficulty
-    current_idx = DIFFICULTY_LEVELS.index(current_diff) if current_diff in DIFFICULTY_LEVELS else 1
+    if current_diff not in DIFFICULTY_LEVELS:
+        current_diff = difficulty_mapper.map_level_to_difficulty(st.session_state.selected_level)
+        st.session_state.current_difficulty = current_diff
+    current_idx = DIFFICULTY_LEVELS.index(current_diff)
 
     if is_correct:
         st.success(f"✅ Correct! The answer was {correct_ans}.")
@@ -410,14 +423,16 @@ elif st.session_state.step == "result":
         if st.button("📋 Review Path Dashboard"):
             st.session_state.step = "path_review"
             st.session_state.current_question = None
-            st.session_state.current_difficulty = None
+            st.session_state.user_answer = None
+            st.session_state.current_difficulty = difficulty_mapper.map_level_to_difficulty(st.session_state.selected_level)
             st.rerun()
             
     with col_goal:
         if st.button("🔄 Change Learning Goal"):
             st.session_state.step = "goal_setting"
             st.session_state.current_question = None
-            st.session_state.current_difficulty = None
+            st.session_state.user_answer = None
+            st.session_state.current_difficulty = difficulty_mapper.map_level_to_difficulty(st.session_state.selected_level)
             st.session_state.learning_objective = None
             st.session_state.generated_path = None
             st.session_state.active_goal_id = None

@@ -1,5 +1,5 @@
 # mistake_agent.py
-import ollama
+from llm_utils import llm_chat
 
 def classify_mistake(question, user_answer, correct_answer):
     prompt = f"""
@@ -14,9 +14,7 @@ def classify_mistake(question, user_answer, correct_answer):
     Return ONLY the category name.
     """
     try:
-        response = ollama.chat(model='phi3', messages=[
-             {'role': 'user', 'content': prompt}
-        ])
-        return response['message']['content'].strip()
+        response = llm_chat(prompt)
+        return response
     except:
         return "General Error"

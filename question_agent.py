@@ -1,5 +1,4 @@
 # question_agent.py
-import ollama
 import json
 import llm_utils
 
