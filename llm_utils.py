@@ -151,7 +151,9 @@ def safe_json_chat(prompt, fallback, model=None, max_retries=3):
 
     prompt_appended = (
         prompt
-        + '\n\nIMPORTANT: Ensure your output is perfectly valid JSON. Escape any double quotes inside string values using \\".'
+        + '\n\nIMPORTANT: Return ONLY valid JSON.'
+        + '\nDo not include explanations, markdown formatting, or text before or after the JSON object.'
+        + '\nEscape any double quotes inside string values using \\".'
     )
 
     for attempt in range(max_retries):
@@ -165,15 +167,27 @@ def safe_json_chat(prompt, fallback, model=None, max_retries=3):
             if not content.strip():
                 continue
 
+            # Debug: print raw LLM response
+            print("RAW LLM RESPONSE:")
+            print(content)
+
             _log_call(model, prompt_appended, content[:200])
+
+            # Strip markdown code fences before parsing
+            content = content.strip()
+            content = re.sub(r"```json", "", content)
+            content = re.sub(r"```", "", content)
+            content = content.strip()
 
             # Try standard parse first
             try:
                 return json.loads(content, strict=False)
             except json.JSONDecodeError:
                 # Fallback: try to extract JSON object from the response
-                match = re.search(r'\{[\s\S]*\}', content)
+                match = re.search(r'\{.*\}', content, re.DOTALL)
                 if match:
+                    print("EXTRACTED JSON:")
+                    print(match.group())
                     return json.loads(match.group(), strict=False)
                 raise  # re-raise if no match found
 
