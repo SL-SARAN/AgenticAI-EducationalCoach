@@ -1,19 +1,22 @@
 {
     "name": "Learner",
     "level": "Beginner",
-    "goal": "flutter",
+    "goal": "learn flutter",
     "topic_scores": {},
     "mistake_history": {
-        "Order Confusion": 2
+        "Order Confusion": 3
     },
     "progress_history": {
         "Variables and Data Types": [
             0,
             0
+        ],
+        "Introduction to Flutter": [
+            0
         ]
     },
     "current_focus": {
-        "current_topic": "Variables and Data Types",
-        "next_step": "Solve simple algebraic expressions using variables and data types"
+        "current_topic": "Introduction to Flutter",
+        "next_step": "Build a simple Flutter app with a home screen and navigation to another screen"
     }
 }

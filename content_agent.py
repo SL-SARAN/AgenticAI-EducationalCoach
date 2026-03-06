@@ -2,6 +2,14 @@ import json
 import llm_utils
 
 def generate_explanation(topic, mistake_type, user_level, question="", user_answer="", correct_answer=""):
+    # Defensive: coerce to strings so `in` checks and f-strings never crash on None
+    topic = str(topic or "")
+    mistake_type = str(mistake_type or "")
+    user_level = str(user_level or "Beginner")
+    question = str(question or "")
+    user_answer = str(user_answer or "")
+    correct_answer = str(correct_answer or "")
+
     # Build question context block so the LLM stays anchored to the actual question
     question_context = ""
     if question:

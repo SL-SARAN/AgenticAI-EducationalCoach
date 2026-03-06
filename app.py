@@ -201,9 +201,12 @@ elif st.session_state.step == "quiz":
     choice = st.radio("Choose your answer:", options.keys(), index=None, format_func=lambda x: f"{x}: {options[x]}")
     
     if st.button("Submit Answer"):
-        st.session_state.user_answer = choice
-        st.session_state.step = "result"
-        st.rerun()
+        if choice is None:
+            st.warning("Please select an answer before submitting.")
+        else:
+            st.session_state.user_answer = choice
+            st.session_state.step = "result"
+            st.rerun()
 
 # --- STEP 3: RESULT ---
 elif st.session_state.step == "result":
@@ -211,7 +214,7 @@ elif st.session_state.step == "result":
     st.progress(100)
     
     q = st.session_state.current_question
-    user_ans = st.session_state.user_answer
+    user_ans = st.session_state.user_answer or "A"
     correct_ans = q.get('correct_answer', 'A')
     
     # 1. Evaluate
