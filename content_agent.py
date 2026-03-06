@@ -1,12 +1,29 @@
 import json
 import llm_utils
 
-def generate_explanation(topic, mistake_type, user_level):
+def generate_explanation(topic, mistake_type, user_level, question="", user_answer="", correct_answer=""):
+    # Build question context block so the LLM stays anchored to the actual question
+    question_context = ""
+    if question:
+        question_context = f"""
+        Question asked: "{question}"
+        User's answer: {user_answer}
+        Correct answer: {correct_answer}
+        """
+
+    relevance_constraint = """
+        IMPORTANT CONSTRAINTS:
+        - The explanation and example code must directly correspond to the concept tested in the question above.
+        - Do not introduce unrelated techniques or libraries.
+        - For basic programming concepts use simple Python examples instead of NumPy or other advanced libraries.
+    """
+
     if "None" in mistake_type or "Correct" in mistake_type:
         prompt = f"""
         Act as an intelligent learning coach and mentor.
         The learner (Level: {user_level}) studied '{topic}' and ACED the assessment.
         Mistake: {mistake_type}
+        {question_context}
         
         Provide structured learning guidance with deep personalization and pedagogical reasoning returning strictly JSON containing these fields:
         
@@ -23,12 +40,14 @@ def generate_explanation(topic, mistake_type, user_level):
             }},
             "why_this_matters": "Explain how mastering this advanced nuance helps in the real-world."
         }}
+        {relevance_constraint}
         """
     else:
         prompt = f"""
         Act as an intelligent learning coach and mentor.
         The learner (Level: {user_level}) studied '{topic}' and made a mistake.
         Detected mistake: {mistake_type}
+        {question_context}
         
         Provide structured learning guidance with deep personalization and pedagogical reasoning returning strictly JSON containing these fields:
         
@@ -45,6 +64,7 @@ def generate_explanation(topic, mistake_type, user_level):
             }},
             "why_this_matters": "Explain how mastering this concept helps in real-world development and coding interviews."
         }}
+        {relevance_constraint}
         """
         
     prompt += "\nDo not use markdown formatting in the JSON keys."

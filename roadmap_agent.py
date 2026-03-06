@@ -2,7 +2,7 @@ import json
 import learning_setup
 import llm_utils
 
-def generate_roadmap(topic, score, mistake_type, level):
+def generate_roadmap(topic, score, mistake_type, level, learning_goal="", difficulty_level="", previous_topics=None):
     is_success = score >= 80 or "None" in mistake_type or "Correct" in mistake_type
     
     # Calculate Next Topic
@@ -19,11 +19,26 @@ def generate_roadmap(topic, score, mistake_type, level):
         next_topic = "Next Module"
         progression_msg = "Proceed to the next module."
 
+    # Build enriched context block
+    goal_context = f"\n        Learning Goal: {learning_goal}" if learning_goal else ""
+    diff_context = f"\n        Current Difficulty Level: {difficulty_level}" if difficulty_level else ""
+    prev_context = ""
+    if previous_topics:
+        prev_context = f"\n        Previously Studied Topics: {', '.join(previous_topics)}"
+
+    path_constraint = """
+        IMPORTANT CONSTRAINTS:
+        - Next topics must remain within the logical sequence of the learner's goal.
+        - Do not jump across unrelated concepts (e.g., from Arrays to Binary Trees).
+        - The suggested next step should build directly on what the learner just studied.
+    """
+
     if is_success:
         prompt = f"""
         Act as an intelligent learning coach.
         The learner studied '{topic}' (Level: {level}) and ACED the assessment with {score}%.
         Mistakes: None.
+        {goal_context}{diff_context}{prev_context}
         
         CONTEXT: {progression_msg}
 
@@ -42,12 +57,14 @@ def generate_roadmap(topic, score, mistake_type, level):
                 "explanation": "Explain why it logically follows"
             }}
         }}
+        {path_constraint}
         """
     else:
         prompt = f"""
         Act as an intelligent learning coach.
         The learner studied '{topic}' (Level: {level}) and scored {score}%.
         The learner mistake: '{mistake_type}'.
+        {goal_context}{diff_context}{prev_context}
 
         Provide a structured roadmap returning strict JSON:
         {{
@@ -63,6 +80,7 @@ def generate_roadmap(topic, score, mistake_type, level):
                 "explanation": "Why this is the correct next step"
             }}
         }}
+        {path_constraint}
         """
         
     prompt += "\nDo not use markdown formatting in the JSON keys."

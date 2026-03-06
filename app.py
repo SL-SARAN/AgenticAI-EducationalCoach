@@ -11,6 +11,22 @@ import goal_agent
 import database
 import goal_manager
 
+
+def _generate_unique_question(topic, difficulty, max_retries=3):
+    """Generate a question, retrying if it duplicates a previous one."""
+    q_data = None
+    for _ in range(max_retries):
+        q_data = question_agent.generate_question(topic, difficulty)
+        if q_data and isinstance(q_data, dict) and "question" in q_data:
+            if q_data["question"] not in st.session_state.question_history:
+                st.session_state.question_history.append(q_data["question"])
+                return q_data
+    # Return last attempt even if duplicate (better than nothing)
+    if q_data and isinstance(q_data, dict) and "question" in q_data:
+        st.session_state.question_history.append(q_data["question"])
+    return q_data
+
+
 st.set_page_config(page_title="Autonomous Learning Coach", layout="wide")
 
 # --- Initialize SQLite database on startup ---
@@ -29,6 +45,8 @@ if "current_difficulty" not in st.session_state:
     st.session_state.current_difficulty = "Medium"
 if "user_answer" not in st.session_state:
     st.session_state.user_answer = None
+if "question_history" not in st.session_state:
+    st.session_state.question_history = []
 if "learning_objective" not in st.session_state:
     st.session_state.learning_objective = None
 if "generated_path" not in st.session_state:
@@ -144,16 +162,16 @@ elif st.session_state.step == "path_review":
             st.session_state.current_question = None
             st.session_state.user_answer = None
 
-            # Use goal-based topic if an active goal exists
+            # Topic priority: user-selected > goal topic
+            goal_topic = None
             if st.session_state.active_goal_id:
                 goal_topic = goal_manager.get_current_topic(st.session_state.active_goal_id)
-                if goal_topic:
-                    selected = goal_topic
-            st.session_state.selected_topic = selected
+            topic_to_use = selected if selected else goal_topic
+            st.session_state.selected_topic = topic_to_use
             st.session_state.current_difficulty = difficulty_mapper.map_level_to_difficulty(st.session_state.selected_level)
             
-            with st.spinner(f"Generating question on {selected}..."):
-                q_data = question_agent.generate_question(selected, st.session_state.current_difficulty)
+            with st.spinner(f"Generating question on {topic_to_use}..."):
+                q_data = _generate_unique_question(topic_to_use, st.session_state.current_difficulty)
                 if q_data and isinstance(q_data, dict) and "question" in q_data:
                     st.session_state.current_question = q_data
                     st.session_state.step = "quiz"
@@ -265,7 +283,10 @@ elif st.session_state.step == "result":
         explanation_data = content_agent.generate_explanation(
             st.session_state.selected_topic, 
             mistake_type, 
-            st.session_state.selected_level
+            st.session_state.selected_level,
+            question=q['question'],
+            user_answer=user_ans,
+            correct_answer=correct_ans
         )
     
     # 1️⃣ Learning Focus
@@ -333,11 +354,16 @@ elif st.session_state.step == "result":
     st.subheader("🚀 Readiness & Next Steps")
     
     with st.spinner("Constructing personalized learning path..."):
+        # Gather previous topics for context
+        _prev_topics = list(learner_model.load_data().get("topic_scores", {}).keys())
         roadmap_data = roadmap_agent.generate_roadmap(
             st.session_state.selected_topic, 
             score, 
             mistake_type, 
-            st.session_state.selected_level
+            st.session_state.selected_level,
+            learning_goal=st.session_state.learning_objective or "",
+            difficulty_level=st.session_state.current_difficulty,
+            previous_topics=_prev_topics
         )
         resource_data = resource_agent.recommend_resources(
             st.session_state.selected_topic, 
@@ -412,9 +438,14 @@ elif st.session_state.step == "result":
             st.session_state.user_answer = None
             st.session_state.current_question = None
             
+            # Validate difficulty before use
+            DIFFICULTY_LEVELS_CHECK = ["Easy", "Easy-Medium", "Medium", "Hard"]
+            if st.session_state.current_difficulty not in DIFFICULTY_LEVELS_CHECK:
+                st.session_state.current_difficulty = difficulty_mapper.map_level_to_difficulty(st.session_state.selected_level)
+
             # Use the UPDATED difficulty
             with st.spinner(f"Adapting to {st.session_state.current_difficulty}..."):
-                q_data = question_agent.generate_question(st.session_state.selected_topic, st.session_state.current_difficulty)
+                q_data = _generate_unique_question(st.session_state.selected_topic, st.session_state.current_difficulty)
                 if q_data:
                     st.session_state.current_question = q_data
                     st.rerun()
@@ -436,6 +467,7 @@ elif st.session_state.step == "result":
             st.session_state.learning_objective = None
             st.session_state.generated_path = None
             st.session_state.active_goal_id = None
+            st.session_state.question_history = []
             st.rerun()
 
 # --- Sidebar: Learner Analytics Dashboard ---

@@ -1,17 +1,19 @@
 {
     "name": "Learner",
     "level": "Beginner",
-    "goal": "c++",
-    "topic_scores": {
-       
-    },
+    "goal": "flutter",
+    "topic_scores": {},
     "mistake_history": {
-        
+        "Order Confusion": 2
     },
     "progress_history": {
-      
+        "Variables and Data Types": [
+            0,
+            0
+        ]
     },
     "current_focus": {
-        
+        "current_topic": "Variables and Data Types",
+        "next_step": "Solve simple algebraic expressions using variables and data types"
     }
 }
