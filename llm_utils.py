@@ -4,11 +4,10 @@ import os
 import logging
 import hashlib
 from datetime import datetime
-
 import streamlit as st
 
 # ── Environment Detection ────────────────────────────────────────
-USE_API_MODEL = False
+USE_API_MODEL = True
 GROQ_API_KEY = None
 
 try:
@@ -26,7 +25,7 @@ else:
 
 # ── Centralized Model Configuration ─────────────────────────────
 DEFAULT_MODEL_OLLAMA = "phi3"
-DEFAULT_MODEL_GROQ = "llama3-8b-8192"
+DEFAULT_MODEL_GROQ = "openai/gpt-oss-120b"
 DEFAULT_MODEL = DEFAULT_MODEL_GROQ if USE_API_MODEL else DEFAULT_MODEL_OLLAMA
 
 # ── Lightweight LLM Call Logging ─────────────────────────────────
