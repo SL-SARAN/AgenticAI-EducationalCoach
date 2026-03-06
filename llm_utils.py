@@ -7,7 +7,7 @@ from datetime import datetime
 import streamlit as st
 
 # ── Environment Detection ────────────────────────────────────────
-USE_API_MODEL = True
+USE_API_MODEL = False
 GROQ_API_KEY = None
 
 try:
