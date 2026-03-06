@@ -283,14 +283,30 @@ elif st.session_state.step == "result":
     st.subheader("🤖 AI Tutor Analysis")
     
     with st.spinner("Analyzing your thought process..."):
-        explanation_data = content_agent.generate_explanation(
-            st.session_state.selected_topic, 
-            mistake_type, 
-            st.session_state.selected_level,
-            question=q['question'],
-            user_answer=user_ans,
-            correct_answer=correct_ans
-        )
+        try:
+            explanation_data = content_agent.generate_explanation(
+                st.session_state.selected_topic, 
+                mistake_type, 
+                st.session_state.selected_level,
+                question=q.get('question', ''),
+                user_answer=str(user_ans),
+                correct_answer=str(correct_ans)
+            )
+        except Exception as e:
+            st.warning(f"⚠️ AI analysis encountered an error ({type(e).__name__}: {e}). Showing default guidance.")
+            explanation_data = {
+                "learning_focus": f"{st.session_state.selected_topic} Fundamentals",
+                "knowledge_gap_profile": ["Core concepts related to the problem"],
+                "why_mistake_happens": "Common logical error.",
+                "ai_explanation": {
+                    "beginner_explanation": "Review the basic syntax and logic flow.",
+                    "step_by_step_correction": "Trace your code logic.",
+                    "sample_code": f"# Example for {st.session_state.selected_topic}\nprint('Hello World')",
+                    "code_comments": "Standard example.",
+                    "practical_tip": "Trace your code manually."
+                },
+                "why_this_matters": "Fundamental for all software engineering."
+            }
     
     # 1️⃣ Learning Focus
     st.error(f"**1️⃣ Learning Focus:** {explanation_data.get('learning_focus', 'Topic Mastery')}")

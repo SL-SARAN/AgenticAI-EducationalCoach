@@ -81,7 +81,7 @@ def _api_chat(prompt, model, temperature):
         messages=[{"role": "user", "content": prompt}],
         temperature=temperature,
     )
-    return completion.choices[0].message.content.strip()
+    return (completion.choices[0].message.content or "").strip()
 
 
 def _ollama_json_chat(prompt, model, temperature):
@@ -103,7 +103,7 @@ def _api_json_chat(prompt, model, temperature):
         temperature=temperature,
         response_format={"type": "json_object"},
     )
-    return completion.choices[0].message.content
+    return completion.choices[0].message.content or ""
 
 
 # ── Central LLM Gateway ─────────────────────────────────────────
@@ -163,7 +163,7 @@ def safe_json_chat(prompt, fallback, model=None, max_retries=3):
             else:
                 content = _ollama_json_chat(prompt_appended, model, 0.1)
 
-            if not content.strip():
+            if not content or not content.strip():
                 continue
 
             # Debug: print raw LLM response
